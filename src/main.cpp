@@ -28,9 +28,11 @@ int main() {
 
   // MPC is initialized here!
   MPC mpc;
-  int iters = 50;
 
-  h.onMessage([&mpc](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  // Save the last actuator
+  const double Lf = 2.67;
+
+  h.onMessage([&mpc, Lf](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -50,6 +52,9 @@ int main() {
           double py = j[1]["y"];
           double psi = j[1]["psi"];
           double v = j[1]["speed"];
+          // Read current state of actuator
+          double delta = j[1]["steering_angle"];
+          double a = j[1]["throttle"];
 
           VectorXd xvals = Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(ptsx.data(), ptsx.size());
           VectorXd yvals = Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(ptsy.data(), ptsy.size());
@@ -76,26 +81,29 @@ int main() {
 
           VectorXd state(6);
           // Use vehicle as origin
-          //state << px, py, psi, v, cte, epsi;
-          state << 0, 0, 0, v, cte, epsi;
+          // Account for 100ms latency. Extrapolation after 100ms
+          const double dt = 0.100;
+          // vehicle moving along its x-axis
+          const auto current_px = 0.0 + v * cos(-delta) * dt;
+          const auto current_py = 0.0 + v * sin(-delta) * dt;
+          const auto current_psi = 0.0 + v * (-delta) / Lf * dt;
+          const auto current_v = v + a * dt;
+          const auto current_cte = cte + v * sin(epsi) * dt;
+          const auto current_epsi = epsi + v * (-delta) / Lf * dt;
 
-          vector<double> x_vals = {state[0]};
-          vector<double> y_vals = {state[1]};
-          vector<double> psi_vals = {state[2]};
-          vector<double> v_vals = {state[3]};
-          vector<double> cte_vals = {state[4]};
-          vector<double> epsi_vals = {state[5]};
-          vector<double> delta_vals = {};
-          vector<double> a_vals = {};
+          state << current_px, current_py, current_psi, current_v, current_cte, current_epsi;
 
           auto vars = mpc.Solve(state, coeffs);
 
           double steer_value;
           double throttle_value;
 
+          delta = vars[6];
+          a = vars[7];
+
           // Positive means left in the simulator
-          steer_value = -1 * vars[6];
-          throttle_value = vars[7];
+          steer_value = -1 * delta;
+          throttle_value = a;
 
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the
