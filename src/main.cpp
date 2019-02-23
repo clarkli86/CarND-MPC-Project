@@ -10,11 +10,13 @@
 #include "helpers.h"
 #include "json.hpp"
 #include "MPC.h"
+#include "matplotlibcpp.h"
 
 // for convenience
 using nlohmann::json;
 using std::string;
 using std::vector;
+namespace plt = matplotlibcpp;
 
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
@@ -26,6 +28,7 @@ int main() {
 
   // MPC is initialized here!
   MPC mpc;
+  int iters = 50;
 
   h.onMessage([&mpc](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
@@ -48,29 +51,109 @@ int main() {
           double psi = j[1]["psi"];
           double v = j[1]["speed"];
 
+          VectorXd xvals = Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(ptsx.data(), ptsx.size());
+          VectorXd yvals = Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(ptsy.data(), ptsy.size());
+
+          // Map to vehicle relative
+          for (int i = 0; i < ptsx.size(); ++i) {
+            double x = ptsx[i] - px;
+            double y = ptsy[i] - py;
+            xvals[i] = x * cos(psi) + y * sin(psi);
+            yvals[i] = -x * sin(psi) + y * cos(psi);
+          }
+
           /**
            * TODO: Calculate steering angle and throttle using MPC.
            * Both are in between [-1, 1].
            */
+
+          auto coeffs = polyfit(xvals, yvals, 3);
+
+          // calculate the cross track error
+          double cte = -polyeval(coeffs, 0);
+          // calculate the orientation error
+          double epsi = -atan(coeffs[1]);
+
+          VectorXd state(6);
+          // Use vehicle as origin
+          //state << px, py, psi, v, cte, epsi;
+          state << 0, 0, 0, v, cte, epsi;
+
+          vector<double> x_vals = {state[0]};
+          vector<double> y_vals = {state[1]};
+          vector<double> psi_vals = {state[2]};
+          vector<double> v_vals = {state[3]};
+          vector<double> cte_vals = {state[4]};
+          vector<double> epsi_vals = {state[5]};
+          vector<double> delta_vals = {};
+          vector<double> a_vals = {};
+
+          auto vars = mpc.Solve(state, coeffs);
+
+          x_vals.push_back(vars[0]);
+          y_vals.push_back(vars[1]);
+          psi_vals.push_back(vars[2]);
+          v_vals.push_back(vars[3]);
+          cte_vals.push_back(vars[4]);
+          epsi_vals.push_back(vars[5]);
+
+          delta_vals.push_back(vars[6]);
+          a_vals.push_back(vars[7]);
+          /*
+          cout << "x = " << vars[0] << endl;
+          cout << "y = " << vars[1] << endl;
+          cout << "psi = " << vars[2] << endl;
+          cout << "v = " << vars[3] << endl;
+          cout << "cte = " << vars[4] << endl;
+          cout << "epsi = " << vars[5] << endl;
+          cout << "delta = " << vars[6] << endl;
+          cout << "a = " << vars[7] << endl;
+          cout << endl;
+          */
+          // Plot values
+          // NOTE: feel free to play around with this.
+          // It's useful for debugging!
+          /*
+          plt::subplot(3, 1, 1);
+          plt::title("CTE");
+          plt::plot(cte_vals);
+          plt::subplot(3, 1, 2);
+          plt::title("Delta (Radians)");
+          plt::plot(delta_vals);
+          plt::subplot(3, 1, 3);
+          plt::title("Velocity");
+          plt::plot(v_vals);
+
+          plt::show();
+          */
+
           double steer_value;
           double throttle_value;
 
+          // Positive means left in the simulator
+          steer_value = -1 * vars[6];
+          throttle_value = vars[7];
+
           json msgJson;
-          // NOTE: Remember to divide by deg2rad(25) before you send the 
-          //   steering value back. Otherwise the values will be in between 
+          // NOTE: Remember to divide by deg2rad(25) before you send the
+          //   steering value back. Otherwise the values will be in between
           //   [-deg2rad(25), deg2rad(25] instead of [-1, 1].
-          msgJson["steering_angle"] = steer_value;
+          msgJson["steering_angle"] = steer_value / deg2rad(25);
           msgJson["throttle"] = throttle_value;
 
-          // Display the MPC predicted trajectory 
+          // Display the MPC predicted trajectory
           vector<double> mpc_x_vals;
           vector<double> mpc_y_vals;
 
           /**
-           * TODO: add (x,y) points to list here, points are in reference to 
-           *   the vehicle's coordinate system the points in the simulator are 
+           * TODO: add (x,y) points to list here, points are in reference to
+           *   the vehicle's coordinate system the points in the simulator are
            *   connected by a Green line
            */
+
+          //int N =
+          //for (int i = 0; i <
+          //mpc_x_vals =
 
           msgJson["mpc_x"] = mpc_x_vals;
           msgJson["mpc_y"] = mpc_y_vals;
@@ -80,11 +163,13 @@ int main() {
           vector<double> next_y_vals;
 
           /**
-           * TODO: add (x,y) points to list here, points are in reference to 
-           *   the vehicle's coordinate system the points in the simulator are 
+           * TODO: add (x,y) points to list here, points are in reference to
+           *   the vehicle's coordinate system the points in the simulator are
            *   connected by a Yellow line
            */
 
+          next_x_vals = ptsx;
+          next_y_vals = ptsy;
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
 
@@ -127,6 +212,6 @@ int main() {
     std::cerr << "Failed to listen to port" << std::endl;
     return -1;
   }
-  
+
   h.run();
 }

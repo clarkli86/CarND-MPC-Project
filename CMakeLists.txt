@@ -6,7 +6,7 @@ cmake_minimum_required (VERSION 3.5)
 # turn on -03 for best performance
 add_definitions(-std=c++11 -O3)
 
-set(CXX_FLAGS "-Wall")
+#set(CXX_FLAGS "-Wall")
 set(CMAKE_CXX_FLAGS "${CXX_FLAGS}")
 
 set(sources src/MPC.cpp src/main.cpp)
@@ -25,5 +25,9 @@ endif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 
 add_executable(mpc ${sources})
 
-target_link_libraries(mpc ipopt z ssl uv uWS)
+if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+target_link_libraries(mpc ipopt z ssl uv uWS python2.7)
+else()
+target_link_libraries(mpc ipopt z ssl uv uWS python)
+endif()
 
