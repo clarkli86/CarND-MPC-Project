@@ -250,8 +250,15 @@ std::vector<double> MPC::Solve(const VectorXd &x0, const VectorXd &coeffs) {
 
   auto cost = solution.obj_value;
   std::cout << "Cost " << cost << std::endl;
-  return {solution.x[x_start + 1],   solution.x[y_start + 1],
-          solution.x[psi_start + 1], solution.x[v_start + 1],
-          solution.x[cte_start + 1], solution.x[epsi_start + 1],
-          solution.x[delta_start],   solution.x[a_start]};
+  std::vector<double> Ret = {solution.x[x_start + 1],   solution.x[y_start + 1],
+                             solution.x[psi_start + 1], solution.x[v_start + 1],
+                             solution.x[cte_start + 1], solution.x[epsi_start + 1],
+                             solution.x[delta_start],   solution.x[a_start]};
+
+  Ret.resize(8 + 2 * N);
+  for (int i = 0; i < N; ++i) {
+    Ret[8 + i] = solution.x[x_start + i];
+    Ret[8 + N + i] = solution.x[y_start + i];
+  }
+  return Ret;
 }

@@ -90,43 +90,6 @@ int main() {
 
           auto vars = mpc.Solve(state, coeffs);
 
-          x_vals.push_back(vars[0]);
-          y_vals.push_back(vars[1]);
-          psi_vals.push_back(vars[2]);
-          v_vals.push_back(vars[3]);
-          cte_vals.push_back(vars[4]);
-          epsi_vals.push_back(vars[5]);
-
-          delta_vals.push_back(vars[6]);
-          a_vals.push_back(vars[7]);
-          /*
-          cout << "x = " << vars[0] << endl;
-          cout << "y = " << vars[1] << endl;
-          cout << "psi = " << vars[2] << endl;
-          cout << "v = " << vars[3] << endl;
-          cout << "cte = " << vars[4] << endl;
-          cout << "epsi = " << vars[5] << endl;
-          cout << "delta = " << vars[6] << endl;
-          cout << "a = " << vars[7] << endl;
-          cout << endl;
-          */
-          // Plot values
-          // NOTE: feel free to play around with this.
-          // It's useful for debugging!
-          /*
-          plt::subplot(3, 1, 1);
-          plt::title("CTE");
-          plt::plot(cte_vals);
-          plt::subplot(3, 1, 2);
-          plt::title("Delta (Radians)");
-          plt::plot(delta_vals);
-          plt::subplot(3, 1, 3);
-          plt::title("Velocity");
-          plt::plot(v_vals);
-
-          plt::show();
-          */
-
           double steer_value;
           double throttle_value;
 
@@ -151,9 +114,11 @@ int main() {
            *   connected by a Green line
            */
 
-          //int N =
-          //for (int i = 0; i <
-          //mpc_x_vals =
+          int N = (vars.size() - 8) / 2;
+          mpc_x_vals.resize(N);
+          copy(begin(vars) + 8, begin(vars) + 8 + N, begin(mpc_x_vals));
+          mpc_y_vals.resize(N);
+          copy(begin(vars) + 8 + N, begin(vars) + 8 + 2 * N, begin(mpc_y_vals));
 
           msgJson["mpc_x"] = mpc_x_vals;
           msgJson["mpc_y"] = mpc_y_vals;
@@ -168,8 +133,11 @@ int main() {
            *   connected by a Yellow line
            */
 
-          next_x_vals = ptsx;
-          next_y_vals = ptsy;
+          next_x_vals.resize(xvals.size());
+          next_y_vals.resize(yvals.size());
+
+          VectorXd::Map(&next_x_vals[0], xvals.size()) = xvals;
+          VectorXd::Map(&next_y_vals[0], yvals.size()) = yvals;
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
 
