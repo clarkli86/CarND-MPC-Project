@@ -8,11 +8,17 @@
 using CppAD::AD;
 using Eigen::VectorXd;
 
-// We set the number of timesteps to 25
-// and the timestep evaluation frequency or evaluation
-// period to 0.05.
-size_t N = 8;
-double dt = 0.100;
+// First set parameters 8/0.100 do not plan far enough. As a result at curves the vehicle only does a sharp turn.
+// size_t N = 8;
+// double dt = 0.100;
+
+// 25 seems too big it tries to fit some waypoints far way!!!
+// size_t N = 25;
+// double dt = 0.250;
+
+// Settle down on this
+size_t N = 10;
+double dt = 0.050;
 
 // This value assumes the model presented in the classroom is used.
 //

@@ -92,6 +92,7 @@ int main() {
           const auto current_epsi = epsi + v * (-delta) / Lf * dt;
 
           state << current_px, current_py, current_psi, current_v, current_cte, current_epsi;
+          //state << 0, 0, 0, v, cte, epsi;
 
           auto vars = mpc.Solve(state, coeffs);
 
